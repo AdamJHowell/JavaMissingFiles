@@ -20,8 +20,7 @@ public class MissingFiles
 	{
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
-		System.out.println(
-			"If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
+		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
 		System.out.println( "Working Directory = " + System.getProperty( "user.dir" ) );
 		System.out.println( "\n" );
 
@@ -65,23 +64,13 @@ public class MissingFiles
 		try
 		{
 			// Walk every file in every directory, starting at inDir, and add it to fileInFolder.
-			List< File >
-				filesInFolder =
-				Files.walk( Paths.get( inDir ) )
-					.filter( Files::isRegularFile )
-					.map( Path::toFile )
-					.collect( Collectors.toList() );
+			List< File > filesInFolder = Files.walk( Paths.get( inDir ) ).filter( Files::isRegularFile ).map( Path::toFile ).collect( Collectors.toList() );
 			// For every file whose name contains a number, add that filename to returnList.
-			returnList.addAll( filesInFolder.stream()
-				.filter( inFile -> inFile.getName().matches( ".*\\d+.*" ) )
-				.map( File::getName )
-				.collect( Collectors.toList() ) );
+			returnList.addAll( filesInFolder.stream().filter( inFile -> inFile.getName().matches( ".*\\d+.*" ) ).map( File::getName ).collect( Collectors.toList() ) );
 /*
-This block is how I was returning the File class object, instead of the String class name.
-I deprecated this to reduce unnecessary overhead, but want to keep it as an example of how to do collection adding.
-			returnList.addAll( filesInFolder.stream()
-				.filter( tempFile -> tempFile.getName().matches( ".*\\d+.*" ) )
-				.collect( Collectors.toList() ) );
+//This block is how I was returning the File class object, instead of the String class name.
+//I deprecated this to reduce unnecessary overhead, but want to keep it as an example of how to do collection adding.
+			returnList.addAll( filesInFolder.stream().filter( tempFile -> tempFile.getName().matches( ".*\\d+.*" ) ).collect( Collectors.toList() ) );
 */
 		}
 		catch( IOException ioe )
@@ -94,6 +83,7 @@ I deprecated this to reduce unnecessary overhead, but want to keep it as an exam
 
 	/**
 	 * FindByDashes will split file names based on dashes, and attempt to locate gaps in numbering.
+	 *
 	 * @param inputList a List of filenames.
 	 * @return a List of filenames that may be missing.
 	 */
@@ -117,19 +107,7 @@ I deprecated this to reduce unnecessary overhead, but want to keep it as an exam
 					{
 						// Get the previous track number.
 						int previousTrackNumber = Integer.parseInt( previousLine[2] );
-						// This block is used to catch albums missing the first track.
-						// ToDo: This will not detect folders whose first track number is 3 or higher.
-						if( currentTrackNumber == 2 )
-						{
-							if( previousTrackNumber != 1 )
-							{
-								missingFiles.add( currentLine[0] +
-									" - " +
-									currentLine[1] +
-									" - " +
-									( currentTrackNumber - 1 ) );
-							}
-						}
+
 						// If the artist names match.
 						if( currentLine[0].equals( previousLine[0] ) )
 						{
@@ -142,23 +120,60 @@ I deprecated this to reduce unnecessary overhead, but want to keep it as an exam
 									// Compare track numbers.
 									if( ( currentTrackNumber - 1 ) != previousTrackNumber )
 									{
-										System.out.println( "\t" +
-											inputList.get( i ) +
-											" does NOT come immediately after " +
-											inputList.get( i - 1 ) );
+										System.out.println( "\t" + inputList.get( i ) + " ||| does NOT come immediately after ||| " + inputList.get( i - 1 ) );
 
-										// Take a guess at the missing track(s).
-										// ToDo: if a gap is more than 3 tracks, list them in one line.
-										for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+										// If one file is missing.
+										if( currentTrackNumber - previousTrackNumber == 2 )
 										{
-											missingFiles.add( currentLine[0] +
-												" - " +
-												currentLine[1] +
-												" - " +
-												( previousTrackNumber + 1 ) );
+											for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+											{
+												missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
+											}
+										}
+										// If more than one file is missing.
+										else if( currentTrackNumber - previousTrackNumber > 2 )
+										{
+											missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks " + ( previousTrackNumber + 1 ) + " to " + ( currentTrackNumber - 1 ) + ")" );
+										}
+										else if( currentTrackNumber - previousTrackNumber == 0 )
+										{
+											missingFiles.add( "Possible duplicates:\n\t"
+											                  + inputList.get( i )
+											                  + "\n\t"
+											                  + inputList.get( i - 1 ) );
+										}
+										else
+										{
+											missingFiles.add( "\tPlease check " + inputList.get( i ) );
 										}
 									}
 								}
+							}
+							// If the artist names match, but the album names do NOT match.
+							else
+							{
+								if( currentTrackNumber == 2 )
+								{
+									//missingFiles.add( "\tAlbum names do not match for: " + inputList.get( i ) + " ||| and ||| " + inputList.get( i - 1 ) );
+									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( currentTrackNumber - 1 ) );
+								}
+								else if( currentTrackNumber > 2 )
+								{
+									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
+								}
+							}
+						}
+						// If the artist names do NOT match.
+						else
+						{
+							if( currentTrackNumber == 2 )
+							{
+								//missingFiles.add( "\t\tArtist names do not match for: " + inputList.get( i ) + " ||| and ||| " + inputList.get( i - 1 ) );
+								missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( currentTrackNumber - 1 ) );
+							}
+							else if( currentTrackNumber > 2 )
+							{
+								missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
 							}
 						}
 					}

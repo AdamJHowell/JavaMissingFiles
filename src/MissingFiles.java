@@ -21,7 +21,7 @@ public class MissingFiles
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
 		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
-		System.out.println( "Working Directory = " + System.getProperty( "user.dir" ) + "\n" );
+		System.out.println( "Output will be saved to \"Missing.txt\" in:\n\t" + System.getProperty( "user.dir" ) + "\n" );
 
 		// Set the search directory.  Change this line to hard-code the program to another directory.
 		String searchDir = args[0];
@@ -112,23 +112,26 @@ public class MissingFiles
 	 */
 	private static List< String > FindByDashes( List< String > inputList )
 	{
+		// Prep previousLine for the first comparison.
 		String[] previousLine = inputList.get( 0 ).split( " - " );
 		String[] currentLine;
 		List< String > missingFiles = new ArrayList<>();
-		// Search for a digit in each line, store that number.
+
 		// Start at 1 instead of 0, and we will compare i to i-1.
-		for( int i = 0; i < inputList.size(); i++ )
+		for( int i = 1; i < inputList.size(); i++ )
 		{
+			// Split the line on " - ", which is how my filenames are delimited.
 			currentLine = inputList.get( i ).split( " - " );
 			if( currentLine.length == 4 && previousLine.length == 4 && inputList.get( i ).endsWith( "m4a" ) )
 			{
 				try
 				{
-					// Get the current track number.
+					// Get the current track number.  This parseInt() may result in a NFE.
 					int currentTrackNumber = Integer.parseInt( currentLine[2] );
+					// We should only check tracks numbered 2 or greater.
 					if( currentTrackNumber > 1 )
 					{
-						// Get the previous track number.
+						// Get the previous track number.  This parseInt() may result in a NFE.
 						int previousTrackNumber = Integer.parseInt( previousLine[2] );
 
 						// If the artist names match.
@@ -137,24 +140,21 @@ public class MissingFiles
 							// If the album names match.
 							if( currentLine[1].equals( previousLine[1] ) )
 							{
-								// We do not need to compare track numbers prior to two.
+								// We should only check tracks numbered 2 or greater.
 								if( currentTrackNumber > 1 )
 								{
 									// Compare track numbers.
 									if( ( currentTrackNumber - 1 ) != previousTrackNumber )
 									{
-										System.out.println( "\t" +
-											inputList.get( i ) +
-											" ||| does NOT come immediately after ||| " +
-											inputList.get( i - 1 ) );
+										System.out.println( "\"" + inputList.get( i ) +
+											"\" does NOT come immediately after \"" +
+											inputList.get( i - 1 ) + "\"");
 
-										// If one file is missing.
-										if( currentTrackNumber - previousTrackNumber == 2 ||
-											currentTrackNumber - previousTrackNumber == 3 )
+										// If one or two files are missing.
+										if( currentTrackNumber - previousTrackNumber == 2 || currentTrackNumber - previousTrackNumber == 3 )
 										{
-											for( ;
-											     previousTrackNumber < ( currentTrackNumber - 1 );
-											     previousTrackNumber++ )
+											// Add each file.
+											for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
 											{
 												missingFiles.add( currentLine[0] +
 													" - " +
@@ -163,9 +163,10 @@ public class MissingFiles
 													( previousTrackNumber + 1 ) );
 											}
 										}
-										// If more than one file is missing.
+										// If more than two files are missing.
 										else if( currentTrackNumber - previousTrackNumber > 3 )
 										{
+											// Add the range of files to a single entry.
 											missingFiles.add( currentLine[0] +
 												" - " +
 												currentLine[1] +
@@ -175,8 +176,10 @@ public class MissingFiles
 												( currentTrackNumber - 1 ) +
 												")" );
 										}
+										// If the Artist, Album, and Track numbers all match.
 										else if( currentTrackNumber - previousTrackNumber == 0 )
 										{
+											// Inform the user that we may have duplicates.
 											missingFiles.add( "Possible duplicates:\n\t" +
 												inputList.get( i ) +
 												"\n\t" +
@@ -184,6 +187,7 @@ public class MissingFiles
 										}
 										else
 										{
+											// This is a catchall for possible missing/broken logic.
 											missingFiles.add( "\tPlease check " + inputList.get( i ) );
 										}
 									}
@@ -192,12 +196,11 @@ public class MissingFiles
 							// If the artist names match, but the album names do NOT match.
 							else
 							{
-								if( currentTrackNumber - previousTrackNumber == 2 ||
-									currentTrackNumber - previousTrackNumber == 3 )
+								// If one or two files are missing.
+								if( currentTrackNumber - previousTrackNumber == 2 || currentTrackNumber - previousTrackNumber == 3 )
 								{
-									for( ;
-									     previousTrackNumber < ( currentTrackNumber - 1 );
-									     previousTrackNumber++ )
+									// Add each file.
+									for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
 									{
 										missingFiles.add( currentLine[0] +
 											" - " +
@@ -206,8 +209,10 @@ public class MissingFiles
 											( previousTrackNumber + 1 ) );
 									}
 								}
+								// If more than two files are missing.
 								else if( currentTrackNumber > 3 )
 								{
+									// Add the range of files to a single entry.
 									missingFiles.add( currentLine[0] +
 										" - " +
 										currentLine[1] +
@@ -220,26 +225,30 @@ public class MissingFiles
 						// If the artist names do NOT match.
 						else
 						{
-							if( currentTrackNumber - previousTrackNumber == 2 ||
-								currentTrackNumber - previousTrackNumber == 3 )
+							if( currentTrackNumber > 1 )
 							{
-								for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+								if( currentTrackNumber == 2 || currentTrackNumber == 3 )
 								{
+									// Add each file.
+									for( previousTrackNumber = 0; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+									{
+										missingFiles.add( currentLine[0] +
+											" - " +
+											currentLine[1] +
+											" - " +
+											( previousTrackNumber + 1 ) );
+									}
+								}
+								else if( currentTrackNumber > 2 )
+								{
+									// Add the range of files to a single entry.
 									missingFiles.add( currentLine[0] +
 										" - " +
 										currentLine[1] +
-										" - " +
-										( previousTrackNumber + 1 ) );
+										" - (tracks 1 to " +
+										( currentTrackNumber - 1 ) +
+										")" );
 								}
-							}
-							else if( currentTrackNumber > 3 )
-							{
-								missingFiles.add( currentLine[0] +
-									" - " +
-									currentLine[1] +
-									" - (tracks 1 to " +
-									( currentTrackNumber - 1 ) +
-									")" );
 							}
 						}
 					}

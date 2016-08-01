@@ -21,14 +21,14 @@ public class MissingFiles
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
 		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
-		System.out.println( "Working Directory = " + System.getProperty( "user.dir" ) );
-		System.out.println( "\n" );
+		System.out.println( "Working Directory = " + System.getProperty( "user.dir" ) + "\n" );
 
-		// Hard-code the program to work with a known, good, directory.
-		//List< String > namesWithNumbers = LocateAllFiles( "D:/Media/Music/A Perfect Circle" );
+		// Set the search directory.  Change this line to hard-code the program to another directory.
+		String searchDir = args[0];
+		//String searchDir = "D:/Media/Music/"
 
 		// Take the directory from the command line arguments.
-		List< String > namesWithNumbers = LocateAllFiles( args[0] );
+		List< String > namesWithNumbers = LocateAllFiles( searchDir );
 
 		if( namesWithNumbers != null )
 		{
@@ -38,6 +38,21 @@ public class MissingFiles
 				// Display every filename that should be investigated.
 				System.out.println( "\nHere are the files that should be investigated:\n" );
 				missingFiles.forEach( System.out::println );
+
+				// Create an output file to write our results to.
+				try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
+				{
+					outFile.write( "Files missing from " + searchDir + "...\n\n" );
+					for( String missingFile : missingFiles )
+					{
+						outFile.write( missingFile + "\n" );
+					}
+					outFile.close();
+				}
+				catch( IOException e )
+				{
+					System.err.println( "Error: " + e.getMessage() );
+				}
 			}
 			else
 			{
@@ -64,9 +79,17 @@ public class MissingFiles
 		try
 		{
 			// Walk every file in every directory, starting at inDir, and add it to fileInFolder.
-			List< File > filesInFolder = Files.walk( Paths.get( inDir ) ).filter( Files::isRegularFile ).map( Path::toFile ).collect( Collectors.toList() );
+			List< File >
+				filesInFolder =
+				Files.walk( Paths.get( inDir ) )
+					.filter( Files::isRegularFile )
+					.map( Path::toFile )
+					.collect( Collectors.toList() );
 			// For every file whose name contains a number, add that filename to returnList.
-			returnList.addAll( filesInFolder.stream().filter( inFile -> inFile.getName().matches( ".*\\d+.*" ) ).map( File::getName ).collect( Collectors.toList() ) );
+			returnList.addAll( filesInFolder.stream()
+				.filter( inFile -> inFile.getName().matches( ".*\\d+.*" ) )
+				.map( File::getName )
+				.collect( Collectors.toList() ) );
 /*
 //This block is how I was returning the File class object, instead of the String class name.
 //I deprecated this to reduce unnecessary overhead, but want to keep it as an example of how to do collection adding.
@@ -120,27 +143,44 @@ public class MissingFiles
 									// Compare track numbers.
 									if( ( currentTrackNumber - 1 ) != previousTrackNumber )
 									{
-										System.out.println( "\t" + inputList.get( i ) + " ||| does NOT come immediately after ||| " + inputList.get( i - 1 ) );
+										System.out.println( "\t" +
+											inputList.get( i ) +
+											" ||| does NOT come immediately after ||| " +
+											inputList.get( i - 1 ) );
 
 										// If one file is missing.
-										if( currentTrackNumber - previousTrackNumber == 2 )
+										if( currentTrackNumber - previousTrackNumber == 2 ||
+											currentTrackNumber - previousTrackNumber == 3 )
 										{
-											for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+											for( ;
+											     previousTrackNumber < ( currentTrackNumber - 1 );
+											     previousTrackNumber++ )
 											{
-												missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
+												missingFiles.add( currentLine[0] +
+													" - " +
+													currentLine[1] +
+													" - " +
+													( previousTrackNumber + 1 ) );
 											}
 										}
 										// If more than one file is missing.
-										else if( currentTrackNumber - previousTrackNumber > 2 )
+										else if( currentTrackNumber - previousTrackNumber > 3 )
 										{
-											missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks " + ( previousTrackNumber + 1 ) + " to " + ( currentTrackNumber - 1 ) + ")" );
+											missingFiles.add( currentLine[0] +
+												" - " +
+												currentLine[1] +
+												" - (tracks " +
+												( previousTrackNumber + 1 ) +
+												" to " +
+												( currentTrackNumber - 1 ) +
+												")" );
 										}
 										else if( currentTrackNumber - previousTrackNumber == 0 )
 										{
-											missingFiles.add( "Possible duplicates:\n\t"
-											                  + inputList.get( i )
-											                  + "\n\t"
-											                  + inputList.get( i - 1 ) );
+											missingFiles.add( "Possible duplicates:\n\t" +
+												inputList.get( i ) +
+												"\n\t" +
+												inputList.get( i - 1 ) );
 										}
 										else
 										{
@@ -152,28 +192,54 @@ public class MissingFiles
 							// If the artist names match, but the album names do NOT match.
 							else
 							{
-								if( currentTrackNumber == 2 )
+								if( currentTrackNumber - previousTrackNumber == 2 ||
+									currentTrackNumber - previousTrackNumber == 3 )
 								{
-									//missingFiles.add( "\tAlbum names do not match for: " + inputList.get( i ) + " ||| and ||| " + inputList.get( i - 1 ) );
-									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( currentTrackNumber - 1 ) );
+									for( ;
+									     previousTrackNumber < ( currentTrackNumber - 1 );
+									     previousTrackNumber++ )
+									{
+										missingFiles.add( currentLine[0] +
+											" - " +
+											currentLine[1] +
+											" - " +
+											( previousTrackNumber + 1 ) );
+									}
 								}
-								else if( currentTrackNumber > 2 )
+								else if( currentTrackNumber > 3 )
 								{
-									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
+									missingFiles.add( currentLine[0] +
+										" - " +
+										currentLine[1] +
+										" - (tracks 1 to " +
+										( currentTrackNumber - 1 ) +
+										")" );
 								}
 							}
 						}
 						// If the artist names do NOT match.
 						else
 						{
-							if( currentTrackNumber == 2 )
+							if( currentTrackNumber - previousTrackNumber == 2 ||
+								currentTrackNumber - previousTrackNumber == 3 )
 							{
-								//missingFiles.add( "\t\tArtist names do not match for: " + inputList.get( i ) + " ||| and ||| " + inputList.get( i - 1 ) );
-								missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( currentTrackNumber - 1 ) );
+								for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
+								{
+									missingFiles.add( currentLine[0] +
+										" - " +
+										currentLine[1] +
+										" - " +
+										( previousTrackNumber + 1 ) );
+								}
 							}
-							else if( currentTrackNumber > 2 )
+							else if( currentTrackNumber > 3 )
 							{
-								missingFiles.add( currentLine[0] + " - " + currentLine[1] + " (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
+								missingFiles.add( currentLine[0] +
+									" - " +
+									currentLine[1] +
+									" - (tracks 1 to " +
+									( currentTrackNumber - 1 ) +
+									")" );
 							}
 						}
 					}

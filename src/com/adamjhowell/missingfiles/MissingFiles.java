@@ -2,8 +2,13 @@ package com.adamjhowell.missingfiles;
 
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -22,15 +27,16 @@ public class MissingFiles
 	{
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
-		System.out.println(
-			"If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
-		System.out.println( "Output will be saved to \"Missing.txt\" in:\n\t" +
-			System.getProperty( "user.dir" ) +
-			"\n" );
+		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
+		System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
 
 		// Set the search directory.  Change this line to hard-code the program to another directory.
 		String searchDir = args[0];
 		//String searchDir = "D:/Media/Music/"
+		Path dir = Paths.get( searchDir );
+		long count = fileCount( dir );
+
+		System.out.println( searchDir + " has " + count + " files" );
 
 		// Take the directory from the command line arguments.
 		List<String> namesWithNumbers = locateAllFiles( searchDir );
@@ -61,6 +67,10 @@ public class MissingFiles
 			else
 			{
 				System.out.println( "No files need to be investigated." );
+				for( String fileName : namesWithNumbers )
+				{
+					System.out.println( "Name: " + fileName );
+				}
 			}
 		}
 		else
@@ -76,6 +86,7 @@ public class MissingFiles
 	 * @param inDir the directory to search.
 	 * @return an ArrayList of File class objects.
 	 */
+	@java.lang.SuppressWarnings( "squid:S106" )
 	private static List<String> locateAllFiles( String inDir )
 	{
 		List<String> returnList = new ArrayList<>();
@@ -83,6 +94,7 @@ public class MissingFiles
 		File folder = new File( inDir );
 		File[] listOfFiles = folder.listFiles();
 
+		assert listOfFiles != null;
 		for( File listOfFile : listOfFiles )
 		{
 			if( listOfFile.isFile() )
@@ -91,27 +103,13 @@ public class MissingFiles
 			}
 			else if( listOfFile.isDirectory() )
 			{
-				System.out.println( "Directory " + listOfFile.getName() );
+				System.out.println( "Located directory " + listOfFile.getName() );
+			}
+			else
+			{
+				System.out.println( "\tFound something odd: " + listOfFile.toString() );
 			}
 		}
-
-//		try
-//		{
-//			// Walk every file in every directory, starting at inDir, and add it to fileInFolder.
-//			List<File> filesInFolder = Files.walk( Paths.get( inDir ) )
-//				.filter( Files::isRegularFile )
-//				.map( Path::toFile )
-//				.collect( Collectors.toList() );
-//			// For every file whose name contains a number, add that filename to returnList.
-//			returnList.addAll( filesInFolder.stream()
-//				.filter( inFile -> inFile.getName().matches( ".*\\d+.*" ) )
-//				.map( File::getName )
-//				.collect( Collectors.toList() ) );
-//		}
-//		catch( IOException ioe )
-//		{
-//			ioe.getMessage();
-//		}
 		return returnList;
 	}
 
@@ -237,5 +235,22 @@ public class MissingFiles
 			previousLine = currentLine;
 		}
 		return missingFiles;
+	}
+
+
+	private static long fileCount( Path dir )
+	{
+		try( Stream<Path> stream = Files.walk( dir ) )
+		{
+			return stream
+				.map( String::valueOf )
+//				.filter( path -> path.endsWith( ".m4a" ) )
+				.count();
+		}
+		catch( IOException e )
+		{
+			e.printStackTrace();
+		}
+		return -1;
 	}
 }

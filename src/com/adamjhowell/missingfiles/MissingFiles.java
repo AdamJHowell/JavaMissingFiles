@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 
@@ -16,23 +18,41 @@ import java.util.stream.Stream;
  * This program is tailor made for my track naming convention.
  * This program will detect gaps in the track numbering.
  * This program assumes that all albums start on track 1.
- * It uses this to detect track missing from the beginning of the album.
+ * It uses this assumption to detect track missing from the beginning of the album.
  * This program will not detect missing tracks at the end of the album, because it cannot determine that final track #.
  */
 public class MissingFiles
 {
+	private static final Logger LOGGER = Logger.getLogger( MissingFiles.class.getName() );
+
+
 	@java.lang.SuppressWarnings( "squid:S106" )
 	public static void main( String[] args )
 	{
+		if( args.length < 1 )
+		{
+			System.out.println( "Please enter a directory to search." );
+			System.out.println( "Exiting..." );
+			return;
+		}
+		// Set the search directory.  Change this line to hard-code the program to another directory.
+		String searchDir = args[0];
+		Path dir = Paths.get( searchDir );
+		File file = new File( searchDir );
+		if( !file.isDirectory() )
+		{
+			System.out.println( searchDir + " is not a directory." );
+			System.out.println( "Exiting..." );
+			return;
+		}
+
+		LOGGER.setLevel( Level.WARNING );
+		LOGGER.log( Level.FINEST, () -> "About to scan." );
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
 		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
 		System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
 
-		// Set the search directory.  Change this line to hard-code the program to another directory.
-		String searchDir = args[0];
-		//String searchDir = "D:/Media/Music/"
-		Path dir = Paths.get( searchDir );
 		long count = fileCount( dir );
 
 		System.out.println( searchDir + " has " + count + " files" );
@@ -43,7 +63,7 @@ public class MissingFiles
 		if( !namesWithNumbers.isEmpty() )
 		{
 			List<String> missingFiles = findByDashes( namesWithNumbers );
-			if( missingFiles.isEmpty() )
+			if( !missingFiles.isEmpty() )
 			{
 				// Display every filename that should be investigated.
 				System.out.println( "\nHere are the files that should be investigated:\n" );
@@ -90,24 +110,15 @@ public class MissingFiles
 	{
 		List<String> returnList = new ArrayList<>();
 
-		File folder = new File( inDir );
-		File[] listOfFiles = folder.listFiles();
-
-		assert listOfFiles != null;
-		for( File listOfFile : listOfFiles )
+		Path path = Paths.get( inDir );
+		try( Stream<Path> stream = Files.walk( path ) )
 		{
-			if( listOfFile.isFile() )
-			{
-				returnList.add( listOfFile.getName() );
-			}
-			else if( listOfFile.isDirectory() )
-			{
-				System.out.println( "Located directory " + listOfFile.getName() );
-			}
-			else
-			{
-				System.out.println( "\tFound something odd: " + listOfFile.toString() );
-			}
+			stream.filter( path1 -> path1.toFile().isFile() ).forEach( name -> returnList.add( name.toString() ) );
+		}
+		catch( IOException ioe )
+		{
+			//handle the exception
+			System.out.println( ioe.getMessage() );
 		}
 		return returnList;
 	}
@@ -119,7 +130,7 @@ public class MissingFiles
 	 * @param inputList a List of filenames.
 	 * @return a List of filenames that may be missing.
 	 */
-	@java.lang.SuppressWarnings( "squid:S106" )
+	@java.lang.SuppressWarnings( { "squid:S106", "squid:S3776" } )
 	private static List<String> findByDashes( List<String> inputList )
 	{
 		// Prep previousLine for the first comparison.
@@ -248,7 +259,7 @@ public class MissingFiles
 		}
 		catch( IOException e )
 		{
-			e.printStackTrace();
+			LOGGER.log( Level.SEVERE, e.getMessage() );
 		}
 		return -1;
 	}

@@ -1,7 +1,10 @@
 package com.adamjhowell.missingfiles;
 
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,11 +18,11 @@ import java.util.stream.Stream;
 /**
  * Created by Adam Howell
  * on 2016-03-23.
- * This program is tailor made for my track naming convention.
+ * This program is tailor made for my audio track naming convention.
  * This program will detect gaps in the track numbering.
  * This program assumes that all albums start on track 1.
  * It uses this assumption to detect track missing from the beginning of the album.
- * This program will not detect missing tracks at the end of the album, because it cannot determine that final track #.
+ * This program will not detect missing tracks at the end of the album, because it cannot determine the final track number.
  */
 public class MissingFiles
 {
@@ -29,74 +32,97 @@ public class MissingFiles
 	@java.lang.SuppressWarnings( "squid:S106" )
 	public static void main( String[] args )
 	{
-		if( args.length < 1 )
-		{
-			System.out.println( "Please enter a directory to search." );
-			System.out.println( "Exiting..." );
-			return;
-		}
 		// Set the search directory.  Change this line to hard-code the program to another directory.
-		String searchDir = args[0];
-		Path dir = Paths.get( searchDir );
-		File file = new File( searchDir );
-		if( !file.isDirectory() )
-		{
-			System.out.println( searchDir + " is not a directory." );
-			System.out.println( "Exiting..." );
-			return;
-		}
+		String searchDir = validateArgs( args );
 
 		LOGGER.setLevel( Level.WARNING );
-		LOGGER.log( Level.FINEST, () -> "About to scan." );
+		LOGGER.log( Level.FINEST, "About to scan." );
+
+		// Greet the user.
+		displayGreeting();
+
+		// Take the directory from the command line arguments.
+		List<String> missingFiles = findByDashes( locateAllFiles( searchDir ) );
+
+		// Print the results to screen, and log to a file.
+		logData( missingFiles, searchDir );
+	} // End of main() method.
+
+
+	/**
+	 * displayGreeting() will greet the user.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static void displayGreeting()
+	{
 		System.out.println( "Adam's missing file locator." );
 		System.out.println( "This program will attempt to locate missing files." );
 		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
 		System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
+	}
 
+
+	/**
+	 * logData() will write the results of the scan to an output file.
+	 *
+	 * @param resultList a List of Strings to write.
+	 * @param searchDir  the directory we scanned.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static void logData( List<String> resultList, String searchDir )
+	{
+		// Display every filename that should be investigated.
+		System.out.println( "\nHere are the files that should be investigated:\n" );
+		resultList.forEach( System.out::println );
+
+		// Create an output file to write our results to.
+		try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
+		{
+			outFile.write( "Files missing from " + searchDir + "...\n\n" );
+			for( String missingFile : resultList )
+			{
+				outFile.write( missingFile + "\n" );
+			}
+		}
+		catch( IOException e )
+		{
+			LOGGER.log( Level.SEVERE, "Error: " + e.getMessage() );
+		}
+	}
+
+
+	/**
+	 * validateArgs() will validate the command line arguments passed to the program.
+	 *
+	 * @param args the command line arguments.
+	 * @return a String representing the directory to scan.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static String validateArgs( String[] args )
+	{
+		if( args.length < 1 )
+		{
+			exiting( "Please enter a directory to search.", -1 );
+		}
+
+		// Create a File class object from the passed parameter.
+		File file = new File( args[0] );
+		// Exit if the parameter is not a valid directory.
+		if( !file.isDirectory() )
+		{
+			exiting( args[0] + " is not a directory.", -2 );
+		}
+
+		// Count the number of files in the directory.
+		Path dir = Paths.get( args[0] );
 		long count = fileCount( dir );
 
-		System.out.println( searchDir + " has " + count + " files" );
+		if( count >= 0 )
+			System.out.println( args[0] + " has " + count + " files" );
 
-		// Take the directory from the command line arguments.
-		List<String> namesWithNumbers = locateAllFiles( searchDir );
-
-		if( !namesWithNumbers.isEmpty() )
-		{
-			List<String> missingFiles = findByDashes( namesWithNumbers );
-			if( !missingFiles.isEmpty() )
-			{
-				// Display every filename that should be investigated.
-				System.out.println( "\nHere are the files that should be investigated:\n" );
-				missingFiles.forEach( System.out::println );
-
-				// Create an output file to write our results to.
-				try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
-				{
-					outFile.write( "Files missing from " + searchDir + "...\n\n" );
-					for( String missingFile : missingFiles )
-					{
-						outFile.write( missingFile + "\n" );
-					}
-				}
-				catch( IOException e )
-				{
-					System.err.println( "Error: " + e.getMessage() );
-				}
-			}
-			else
-			{
-				System.out.println( "No files need to be investigated." );
-				for( String fileName : namesWithNumbers )
-				{
-					System.out.println( "Name: " + fileName );
-				}
-			}
-		}
-		else
-		{
-			System.out.println( "No files were read in." );
-		}
-	} // End of main() method.
+		// Return the input command line argument, now that it has been validated.
+		return args[0];
+	}
 
 
 	/**
@@ -105,20 +131,25 @@ public class MissingFiles
 	 * @param inDir the directory to search.
 	 * @return an ArrayList of File class objects.
 	 */
-	@java.lang.SuppressWarnings( "squid:S106" )
 	private static List<String> locateAllFiles( String inDir )
 	{
 		List<String> returnList = new ArrayList<>();
 
 		Path path = Paths.get( inDir );
+		// Create a Stream from the Files.walk().
 		try( Stream<Path> stream = Files.walk( path ) )
 		{
+			// Filter to select only files (not directories), and send the file name to returnList.
 			stream.filter( path1 -> path1.toFile().isFile() ).forEach( name -> returnList.add( name.toString() ) );
 		}
 		catch( IOException ioe )
 		{
-			//handle the exception
-			System.out.println( ioe.getMessage() );
+			LOGGER.log( Level.SEVERE, ioe.getMessage() );
+		}
+		if( returnList.isEmpty() )
+		{
+			// Exit if no files were located.
+			exiting( "No files were read in!", -3 );
 		}
 		return returnList;
 	}
@@ -143,6 +174,7 @@ public class MissingFiles
 		{
 			// Split the line on " - ", which is how my filenames are delimited.
 			currentLine = inputList.get( i ).split( " - " );
+			// I added the "m4a" filter here, because mp3s were adding too many files to be useful.
 			if( currentLine.length == 4 && previousLine.length == 4 && inputList.get( i ).endsWith( "m4a" ) )
 			{
 				try
@@ -166,9 +198,8 @@ public class MissingFiles
 								{
 									System.out.println( "\"" + inputList.get( i ) + "\" does NOT come immediately after \"" + inputList.get( i - 1 ) + "\"" );
 
-									// If one or two files are missing.
-									if( currentTrackNumber - previousTrackNumber == 2 ||
-										currentTrackNumber - previousTrackNumber == 3 )
+									// If one or two files are missing, add them individually.
+									if( currentTrackNumber - previousTrackNumber == 2 || currentTrackNumber - previousTrackNumber == 3 )
 									{
 										// Add each file.
 										for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
@@ -176,7 +207,7 @@ public class MissingFiles
 											missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
 										}
 									}
-									// If more than two files are missing.
+									// If more than two files are missing, add them as a range.
 									else if( currentTrackNumber - previousTrackNumber > 3 )
 									{
 										// Add the range of files to a single entry.
@@ -244,17 +275,28 @@ public class MissingFiles
 			}
 			previousLine = currentLine;
 		}
+		if( missingFiles.isEmpty() )
+		{
+			// Exit if no files were located.
+			exiting( "No files are missing!", -4 );
+		}
 		return missingFiles;
 	}
 
 
+	/**
+	 * fileCount() counts the number of files in the passed Path.
+	 *
+	 * @param dir the directory to scan.
+	 * @return the number of files discovered.
+	 */
 	private static long fileCount( Path dir )
 	{
 		try( Stream<Path> stream = Files.walk( dir ) )
 		{
 			return stream
 				.map( String::valueOf )
-//				.filter( path -> path.endsWith( ".m4a" ) )
+//				.filter( path -> path.endsWith( ".m4a" ) )  // Optionally filter the count to only include this file extension.
 				.count();
 		}
 		catch( IOException e )
@@ -262,5 +304,20 @@ public class MissingFiles
 			LOGGER.log( Level.SEVERE, e.getMessage() );
 		}
 		return -1;
+	}
+
+
+	/**
+	 * exiting() will print an error and exit the program.
+	 *
+	 * @param reasonText the error to print.
+	 * @param exitCode   the exit code to pass to the JVM.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static void exiting( String reasonText, int exitCode )
+	{
+		System.out.println( reasonText );
+		System.out.println( "Exiting..." );
+		System.exit( exitCode );
 	}
 }

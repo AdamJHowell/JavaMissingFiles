@@ -29,66 +29,23 @@ public class MissingFiles
 	private static final Logger LOGGER = Logger.getLogger( MissingFiles.class.getName() );
 
 
-	@java.lang.SuppressWarnings( "squid:S106" )
 	public static void main( String[] args )
 	{
 		// Set the search directory.  Change this line to hard-code the program to another directory.
-		String searchDir = validateArgs( args );
+		long count = validateArgs( args );
 
 		LOGGER.setLevel( Level.WARNING );
 		LOGGER.log( Level.FINEST, "About to scan." );
 
 		// Greet the user.
-		displayGreeting();
+		displayGreeting( args[0], count );
 
 		// Take the directory from the command line arguments.
-		List<String> missingFiles = findByDashes( locateAllFiles( searchDir ) );
+		List<String> missingFiles = findByDashes( locateAllFiles( args[0] ) );
 
 		// Print the results to screen, and log to a file.
-		logData( missingFiles, searchDir );
+		logData( missingFiles, args[0] );
 	} // End of main() method.
-
-
-	/**
-	 * displayGreeting() will greet the user.
-	 */
-	@SuppressWarnings( "squid:S106" )
-	private static void displayGreeting()
-	{
-		System.out.println( "Adam's missing file locator." );
-		System.out.println( "This program will attempt to locate missing files." );
-		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
-		System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
-	}
-
-
-	/**
-	 * logData() will write the results of the scan to an output file.
-	 *
-	 * @param resultList a List of Strings to write.
-	 * @param searchDir  the directory we scanned.
-	 */
-	@SuppressWarnings( "squid:S106" )
-	private static void logData( List<String> resultList, String searchDir )
-	{
-		// Display every filename that should be investigated.
-		System.out.println( "\nHere are the files that should be investigated:\n" );
-		resultList.forEach( System.out::println );
-
-		// Create an output file to write our results to.
-		try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
-		{
-			outFile.write( "Files missing from " + searchDir + "...\n\n" );
-			for( String missingFile : resultList )
-			{
-				outFile.write( missingFile + "\n" );
-			}
-		}
-		catch( IOException e )
-		{
-			LOGGER.log( Level.SEVERE, "Error: " + e.getMessage() );
-		}
-	}
 
 
 	/**
@@ -98,8 +55,10 @@ public class MissingFiles
 	 * @return a String representing the directory to scan.
 	 */
 	@SuppressWarnings( "squid:S106" )
-	private static String validateArgs( String[] args )
+	private static long validateArgs( String[] args )
 	{
+		LOGGER.log( Level.FINEST, "validateArgs()" );
+
 		if( args.length < 1 )
 		{
 			exiting( "Please enter a directory to search.", -1 );
@@ -113,16 +72,29 @@ public class MissingFiles
 			exiting( args[0] + " is not a directory.", -2 );
 		}
 
-		// Count the number of files in the directory.
-		Path dir = Paths.get( args[0] );
-		long count = fileCount( dir );
+		// At this point we have validated args[0] as a valid directory.  Return the number of files in the directory.
+		return fileCount( Paths.get( args[0] ) );
+	} // End of validateArgs() method.
 
+
+	/**
+	 * displayGreeting() will greet the user.
+	 *
+	 * @param directoryName the directory that will be recursively scanned.
+	 * @param count         the number of files in the directory.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static void displayGreeting( String directoryName, long count )
+	{
+		LOGGER.log( Level.FINEST, "displayGreeting()" );
+
+		System.out.println( "Adam's missing file locator." );
+		System.out.println( "This program will attempt to locate missing files." );
+		System.out.println( "If a file or directory contains a number, this program will look for subsequent files that are non-sequential" );
+		System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
 		if( count >= 0 )
-			System.out.println( args[0] + " has " + count + " files" );
-
-		// Return the input command line argument, now that it has been validated.
-		return args[0];
-	}
+			System.out.println( directoryName + " has " + count + " files" );
+	} // End of displayGreeting() method.
 
 
 	/**
@@ -133,6 +105,8 @@ public class MissingFiles
 	 */
 	private static List<String> locateAllFiles( String inDir )
 	{
+		LOGGER.log( Level.FINEST, "locateAllFiles()" );
+
 		List<String> returnList = new ArrayList<>();
 
 		Path path = Paths.get( inDir );
@@ -152,7 +126,7 @@ public class MissingFiles
 			exiting( "No files were read in!", -3 );
 		}
 		return returnList;
-	}
+	} // End of locateAllFiles() method.
 
 
 	/**
@@ -164,6 +138,8 @@ public class MissingFiles
 	@java.lang.SuppressWarnings( { "squid:S106", "squid:S3776" } )
 	private static List<String> findByDashes( List<String> inputList )
 	{
+		LOGGER.log( Level.FINEST, "findByDashes()" );
+
 		// Prep previousLine for the first comparison.
 		String[] previousLine = inputList.get( 0 ).split( " - " );
 		String[] currentLine;
@@ -281,7 +257,7 @@ public class MissingFiles
 			exiting( "No files are missing!", -4 );
 		}
 		return missingFiles;
-	}
+	} // End of findByDashes() method.
 
 
 	/**
@@ -292,6 +268,8 @@ public class MissingFiles
 	 */
 	private static long fileCount( Path dir )
 	{
+		LOGGER.log( Level.FINEST, "fileCount()" );
+
 		try( Stream<Path> stream = Files.walk( dir ) )
 		{
 			return stream
@@ -304,7 +282,38 @@ public class MissingFiles
 			LOGGER.log( Level.SEVERE, e.getMessage() );
 		}
 		return -1;
-	}
+	} // End of fileCount() method.
+
+
+	/**
+	 * logData() will write the results of the scan to an output file.
+	 *
+	 * @param resultList a List of Strings to write.
+	 * @param searchDir  the directory we scanned.
+	 */
+	@SuppressWarnings( "squid:S106" )
+	private static void logData( List<String> resultList, String searchDir )
+	{
+		LOGGER.log( Level.FINEST, "logData()" );
+
+		// Display every filename that should be investigated.
+		System.out.println( "\nHere are the files that should be investigated:\n" );
+		resultList.forEach( System.out::println );
+
+		// Create an output file to write our results to.
+		try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
+		{
+			outFile.write( "Files missing from " + searchDir + "...\n\n" );
+			for( String missingFile : resultList )
+			{
+				outFile.write( missingFile + "\n" );
+			}
+		}
+		catch( IOException e )
+		{
+			LOGGER.log( Level.SEVERE, "Error: " + e.getMessage() );
+		}
+	} // End of logData() method.
 
 
 	/**
@@ -316,8 +325,10 @@ public class MissingFiles
 	@SuppressWarnings( "squid:S106" )
 	private static void exiting( String reasonText, int exitCode )
 	{
+		LOGGER.log( Level.WARNING, "exiting()" );
+
 		System.out.println( reasonText );
 		System.out.println( "Exiting..." );
 		System.exit( exitCode );
-	}
+	} // End of exiting() method.
 }

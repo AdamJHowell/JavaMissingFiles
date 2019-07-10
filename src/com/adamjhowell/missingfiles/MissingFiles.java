@@ -131,11 +131,12 @@ public class MissingFiles
 
 	/**
 	 * findByDashes will split file names based on dashes, and attempt to locate gaps in numbering.
+	 * I am intentionally not suppressing squid:S3776, so I can keep track of what refactoring is still needed.
 	 *
 	 * @param inputList a List of filenames.
 	 * @return a List of filenames that may be missing.
 	 */
-	@java.lang.SuppressWarnings( { "squid:S106", "squid:S3776" } )
+	@SuppressWarnings( "squid:S106" )
 	private static List<String> findByDashes( List<String> inputList )
 	{
 		LOGGER.log( Level.FINEST, "findByDashes()" );

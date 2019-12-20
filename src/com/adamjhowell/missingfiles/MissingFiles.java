@@ -1,10 +1,13 @@
 package com.adamjhowell.missingfiles;
 
 
+import com.google.gson.Gson;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,6 +36,22 @@ public class MissingFiles
 	{
 		// Set the search directory.  Change this line to hard-code the program to another directory.
 		long count = validateArgs( args );
+		String delimiter = " - ";
+		String configFileName = "config.json";
+		Config config = loadConfig( configFileName );
+
+		if( args.length > 1 )
+		{
+			config.setSearchPath( args[1] );
+		}
+		if( args.length > 2 )
+		{
+			config.setDelimiter( args[2] );
+		}
+		if( args.length > 3 )
+		{
+			config.setOutFileName( args[3] );
+		}
 
 		LOGGER.setLevel( Level.WARNING );
 		LOGGER.log( Level.FINEST, "About to scan." );
@@ -41,10 +60,10 @@ public class MissingFiles
 		displayGreeting( args[0], count );
 
 		// Take the directory from the command line arguments.
-		List<String> missingFiles = findByDashes( locateAllFiles( args[0] ) );
+		List<String> missingFiles = findByDashes( locateAllFiles( config.searchPath ), delimiter );
 
 		// Print the results to screen, and log to a file.
-		logData( missingFiles, args[0] );
+		logData( missingFiles, config.searchPath, config.outFileName );
 	} // End of main() method.
 
 
@@ -75,6 +94,47 @@ public class MissingFiles
 		// At this point we have validated args[0] as a valid directory.  Return the number of files in the directory.
 		return fileCount( Paths.get( args[0] ) );
 	} // End of validateArgs() method.
+
+
+	/**
+	 * loadConfig() loads a configuration from a file name.
+	 *
+	 * @param configFileName the file name to read.
+	 * @return a Config class object.
+	 */
+	private static Config loadConfig( String configFileName )
+	{
+		Gson gson = new Gson();
+		File configFile = new File( configFileName );
+
+		if( !configFile.exists() || configFile.isDirectory() )
+		{
+			exiting( "Configuration file \"" + configFileName + "\" does not exist!", -3 );
+		}
+
+		return gson.fromJson( readFileToString( configFileName ), Config.class );
+	} // End of loadConfig() method.
+
+
+	/**
+	 * readFileToString will take a file name and return the entire file as one String.
+	 *
+	 * @param path the file name to open and read.
+	 * @return a String representing the contents of the file.
+	 */
+	private static String readFileToString( String path )
+	{
+		byte[] encoded = new byte[0];
+		try
+		{
+			encoded = Files.readAllBytes( Paths.get( path ) );
+		}
+		catch( IOException ioe )
+		{
+			exiting( ioe.getLocalizedMessage(), -4 );
+		}
+		return new String( encoded, StandardCharsets.UTF_8 );
+	} // End of readFileToString() method.
 
 
 	/**
@@ -123,7 +183,7 @@ public class MissingFiles
 		if( returnList.isEmpty() )
 		{
 			// Exit if no files were located.
-			exiting( "No files were read in!", -3 );
+			exiting( "No files were read in!", -5 );
 		}
 		return returnList;
 	} // End of locateAllFiles() method.
@@ -131,26 +191,27 @@ public class MissingFiles
 
 	/**
 	 * findByDashes will split file names based on dashes, and attempt to locate gaps in numbering.
+	 * This program was written when I was still new to Java.
 	 * I am intentionally not suppressing squid:S3776, so I can keep track of what refactoring is still needed.
 	 *
 	 * @param inputList a List of filenames.
 	 * @return a List of filenames that may be missing.
 	 */
 	@SuppressWarnings( "squid:S106" )
-	private static List<String> findByDashes( List<String> inputList )
+	private static List<String> findByDashes( List<String> inputList, String delimiter )
 	{
 		LOGGER.log( Level.FINEST, "findByDashes()" );
 
 		// Prep previousLine for the first comparison.
-		String[] previousLine = inputList.get( 0 ).split( " - " );
+		String[] previousLine = inputList.get( 0 ).split( delimiter );
 		String[] currentLine;
 		List<String> missingFiles = new ArrayList<>();
 
 		// Start at 1 instead of 0, and we will compare i to i-1.
 		for( int i = 1; i < inputList.size(); i++ )
 		{
-			// Split the line on " - ", which is how my filenames are delimited.
-			currentLine = inputList.get( i ).split( " - " );
+			// Split the line on the delimiter.
+			currentLine = inputList.get( i ).split( delimiter );
 			// I added the "m4a" filter here, because mp3s were adding too many files to be useful.
 			if( currentLine.length == 4 && previousLine.length == 4 && inputList.get( i ).endsWith( "m4a" ) )
 			{
@@ -181,14 +242,14 @@ public class MissingFiles
 										// Add each file.
 										for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
 										{
-											missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
+											missingFiles.add( currentLine[0] + delimiter + currentLine[1] + delimiter + ( previousTrackNumber + 1 ) );
 										}
 									}
 									// If more than two files are missing, add them as a range.
 									else if( currentTrackNumber - previousTrackNumber > 3 )
 									{
 										// Add the range of files to a single entry.
-										missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - (tracks " + ( previousTrackNumber + 1 ) + " to " + ( currentTrackNumber - 1 ) + ")" );
+										missingFiles.add( currentLine[0] + delimiter + currentLine[1] + " - (tracks " + ( previousTrackNumber + 1 ) + " to " + ( currentTrackNumber - 1 ) + ")" );
 									}
 									// If the Artist, Album, and Track numbers all match.
 									else if( currentTrackNumber - previousTrackNumber == 0 )
@@ -207,20 +268,19 @@ public class MissingFiles
 							else
 							{
 								// If one or two files are missing.
-								if( currentTrackNumber - previousTrackNumber == 2 ||
-									currentTrackNumber - previousTrackNumber == 3 )
+								if( currentTrackNumber - previousTrackNumber == 2 || currentTrackNumber - previousTrackNumber == 3 )
 								{
 									// Add each file.
 									for( ; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
 									{
-										missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
+										missingFiles.add( currentLine[0] + delimiter + currentLine[1] + delimiter + ( previousTrackNumber + 1 ) );
 									}
 								}
 								// If more than two files are missing.
 								else if( currentTrackNumber > 3 )
 								{
 									// Add the range of files to a single entry.
-									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
+									missingFiles.add( currentLine[0] + delimiter + currentLine[1] + " - (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
 								}
 							}
 						}
@@ -230,17 +290,15 @@ public class MissingFiles
 							if( currentTrackNumber == 2 || currentTrackNumber == 3 )
 							{
 								// Add each file.
-								for( previousTrackNumber = 0;
-								     previousTrackNumber < ( currentTrackNumber - 1 );
-								     previousTrackNumber++ )
+								for( previousTrackNumber = 0; previousTrackNumber < ( currentTrackNumber - 1 ); previousTrackNumber++ )
 								{
-									missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - " + ( previousTrackNumber + 1 ) );
+									missingFiles.add( currentLine[0] + delimiter + currentLine[1] + delimiter + ( previousTrackNumber + 1 ) );
 								}
 							}
 							else
 							{
 								// Add the range of files to a single entry.
-								missingFiles.add( currentLine[0] + " - " + currentLine[1] + " - (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
+								missingFiles.add( currentLine[0] + delimiter + currentLine[1] + " - (tracks 1 to " + ( currentTrackNumber - 1 ) + ")" );
 							}
 						}
 					}
@@ -255,7 +313,7 @@ public class MissingFiles
 		if( missingFiles.isEmpty() )
 		{
 			// Exit if no files were located.
-			exiting( "No files are missing!", -4 );
+			exiting( "No files are missing!", -6 );
 		}
 		return missingFiles;
 	} // End of findByDashes() method.
@@ -273,14 +331,13 @@ public class MissingFiles
 
 		try( Stream<Path> stream = Files.walk( dir ) )
 		{
-			return stream
-				.map( String::valueOf )
+			return stream.map( String::valueOf )
 //				.filter( path -> path.endsWith( ".m4a" ) )  // Optionally filter the count to only include this file extension.
 				.count();
 		}
-		catch( IOException e )
+		catch( IOException ioe )
 		{
-			LOGGER.log( Level.SEVERE, e.getMessage() );
+			LOGGER.log( Level.SEVERE, ioe.getMessage() );
 		}
 		return -1;
 	} // End of fileCount() method.
@@ -293,7 +350,7 @@ public class MissingFiles
 	 * @param searchDir  the directory we scanned.
 	 */
 	@SuppressWarnings( "squid:S106" )
-	private static void logData( List<String> resultList, String searchDir )
+	private static void logData( List<String> resultList, String searchDir, String outFileName )
 	{
 		LOGGER.log( Level.FINEST, "logData()" );
 
@@ -302,7 +359,7 @@ public class MissingFiles
 		resultList.forEach( System.out::println );
 
 		// Create an output file to write our results to.
-		try( BufferedWriter outFile = new BufferedWriter( new FileWriter( "Missing.txt" ) ) )
+		try( BufferedWriter outFile = new BufferedWriter( new FileWriter( outFileName ) ) )
 		{
 			outFile.write( "Files missing from " + searchDir + "...\n\n" );
 			for( String missingFile : resultList )
@@ -310,9 +367,9 @@ public class MissingFiles
 				outFile.write( missingFile + "\n" );
 			}
 		}
-		catch( IOException e )
+		catch( IOException ioe )
 		{
-			LOGGER.log( Level.SEVERE, "Error: " + e.getMessage() );
+			LOGGER.log( Level.SEVERE, "Error: " + ioe.getMessage() );
 		}
 	} // End of logData() method.
 

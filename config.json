@@ -1,0 +1,5 @@
+{
+	"searchPath": ".",
+	"outFileName": "results.txt",
+	"delimiter": " - "
+}

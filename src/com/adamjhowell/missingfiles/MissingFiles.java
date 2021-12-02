@@ -21,7 +21,7 @@ import java.util.stream.Stream;
 /**
  * Created by Adam Howell
  * on 2016-03-23.
- * This program is tailor made for my audio track naming convention.
+ * This program is tailor-made for my audio track naming convention.
  * This program will detect gaps in the track numbering.
  * This program assumes that all albums start on track 1.
  * It uses this assumption to detect track missing from the beginning of the album.
@@ -36,9 +36,7 @@ public class MissingFiles
 	{
 		// Set the search directory.  Change this line to hard-code the program to another directory.
 		long count = validateArgs( args );
-		String delimiter = " - ";
-		String configFileName = "config.json";
-		Config config = loadConfig( configFileName );
+		Config config = loadConfig( "config.json" );
 
 		if( args.length > 1 )
 		{
@@ -60,7 +58,7 @@ public class MissingFiles
 		displayGreeting( args[0], count );
 
 		// Take the directory from the command line arguments.
-		List<String> missingFiles = findByDashes( locateAllFiles( config.searchPath ), delimiter );
+		List<String> missingFiles = findByDashes( locateAllFiles( config.searchPath ), config.delimiter );
 
 		// Print the results to screen, and log to a file.
 		logData( missingFiles, config.searchPath, config.outFileName );
@@ -104,7 +102,6 @@ public class MissingFiles
 	 */
 	private static Config loadConfig( String configFileName )
 	{
-		Gson gson = new Gson();
 		File configFile = new File( configFileName );
 
 		if( !configFile.exists() || configFile.isDirectory() )
@@ -112,7 +109,7 @@ public class MissingFiles
 			exiting( "Configuration file \"" + configFileName + "\" does not exist!", -3 );
 		}
 
-		return gson.fromJson( readFileToString( configFileName ), Config.class );
+		return new Gson().fromJson( readFileToString( configFileName ), Config.class );
 	} // End of loadConfig() method.
 
 
@@ -200,6 +197,7 @@ public class MissingFiles
 	@SuppressWarnings( "squid:S106" )
 	private static List<String> findByDashes( List<String> inputList, String delimiter )
 	{
+		// ToDo: Refactor this to be anything other than a freakish monolith!
 		LOGGER.log( Level.FINEST, "findByDashes()" );
 
 		// Prep previousLine for the first comparison.
@@ -320,7 +318,7 @@ public class MissingFiles
 
 
 	/**
-	 * fileCount() counts the number of files in the passed Path.
+	 * fileCount() counts the number of files in the given Path.
 	 *
 	 * @param dir the directory to scan.
 	 * @return the number of files discovered.
@@ -333,7 +331,7 @@ public class MissingFiles
 		{
 			return stream.map( String::valueOf )
 //				.filter( path -> path.endsWith( ".m4a" ) )  // Optionally filter the count to only include this file extension.
-				.count();
+                      .count();
 		}
 		catch( IOException ioe )
 		{
@@ -369,7 +367,8 @@ public class MissingFiles
 		}
 		catch( IOException ioe )
 		{
-			LOGGER.log( Level.SEVERE, "Error: " + ioe.getMessage() );
+			String logString = "Error: %s" + ioe.getMessage();
+			LOGGER.log( Level.SEVERE, logString );
 		}
 	} // End of logData() method.
 

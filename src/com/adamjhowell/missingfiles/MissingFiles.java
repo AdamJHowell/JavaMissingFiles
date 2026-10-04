@@ -62,7 +62,7 @@ public class MissingFiles
 
       // Print the results to screen, and log to a file.
       logData( missingFiles, config.searchPath, config.outFileName );
-   } // End of main() method.
+   }
 
 
    /**
@@ -91,7 +91,7 @@ public class MissingFiles
 
       // At this point we have validated args[0] as a valid directory.  Return the number of files in the directory.
       return fileCount( Paths.get( args[0] ) );
-   } // End of validateArgs() method.
+   }
 
 
    /**
@@ -110,7 +110,7 @@ public class MissingFiles
       }
 
       return new Gson().fromJson( readFileToString( configFileName ), Config.class );
-   } // End of loadConfig() method.
+   }
 
 
    /**
@@ -131,7 +131,7 @@ public class MissingFiles
          exiting( ioe.getLocalizedMessage(), -4 );
       }
       return new String( encoded, StandardCharsets.UTF_8 );
-   } // End of readFileToString() method.
+   }
 
 
    /**
@@ -151,7 +151,7 @@ public class MissingFiles
       System.out.println( "Output will be saved to:\n\t" + System.getProperty( "user.dir" ) + "\\Missing.txt\n" );
       if( count >= 0 )
          System.out.println( directoryName + " has " + count + " files" );
-   } // End of displayGreeting() method.
+   }
 
 
    /**
@@ -183,7 +183,7 @@ public class MissingFiles
          exiting( "No files were read in!", -5 );
       }
       return returnList;
-   } // End of locateAllFiles() method.
+   }
 
 
    /**
@@ -314,7 +314,7 @@ public class MissingFiles
          exiting( "No files are missing!", -6 );
       }
       return missingFiles;
-   } // End of findByDashes() method.
+   }
 
 
    /**
@@ -330,7 +330,7 @@ public class MissingFiles
       try( Stream<Path> stream = Files.walk( dir ) )
       {
          return stream.map( String::valueOf )
-//				.filter( path -> path.endsWith( ".m4a" ) )  // Optionally filter the count to only include this file extension.
+//            .filter( path -> path.endsWith( ".m4a" ) )  // Optionally filter the count to only include this file extension.
             .count();
       }
       catch( IOException ioe )
@@ -338,7 +338,7 @@ public class MissingFiles
          LOGGER.log( Level.SEVERE, ioe.getMessage() );
       }
       return -1;
-   } // End of fileCount() method.
+   }
 
 
    /**
@@ -370,7 +370,7 @@ public class MissingFiles
          String logString = "Error: %s" + ioe.getMessage();
          LOGGER.log( Level.SEVERE, logString );
       }
-   } // End of logData() method.
+   }
 
 
    /**
@@ -387,5 +387,5 @@ public class MissingFiles
       System.out.println( reasonText );
       System.out.println( "Exiting..." );
       System.exit( exitCode );
-   } // End of exiting() method.
+   }
 }
